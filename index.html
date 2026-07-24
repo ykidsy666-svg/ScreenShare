@@ -6,43 +6,62 @@
     <title>Remote iPhone Viewer</title>
     <link rel="icon" href="data:,">
 
-    <!--
-        FIX: Use the actual PeerJS library path on the CDN, not the CDN homepage.
-        cdnjs.cloudflare.com/ajax/libs/peerjs/...  ✅
-        cloudflare.com                              ❌ (just the homepage)
-    -->
+    <!-- PeerJS (WebRTC) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js" crossorigin="anonymous"></script>
+    <!-- QRCode.js (QR generation) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
+
+    <style>
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(0,118,255,0.5); }
+            50%      { box-shadow: 0 0 0 10px rgba(0,118,255,0); }
+        }
+        .pulse { animation: pulse 1.5s ease-out infinite; }
+        #qrcode img, #qrcode canvas { margin: 0 auto; border-radius: 6px; }
+    </style>
 </head>
 <body style="max-width: 800px; margin: 20px auto; font-family: sans-serif; text-align: center; background: #f9f9f9; padding: 20px;">
 
     <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-        <h2>Remote iPhone Viewer</h2>
-        <p style="color: #666; font-size: 14px;">Open this page on <strong>both</strong> devices. Copy your ID and share it with the other device.</p>
+        <h2 style="margin-top: 0;">Remote iPhone Viewer</h2>
+        <p style="color: #666; font-size: 14px;">Open this page on <strong>both</strong> devices, then scan the QR code with the iPhone's camera.</p>
 
         <div style="margin: 20px 0; padding: 15px; background: #f0f7ff; border-radius: 6px;">
             <p style="margin: 0 0 8px 0; font-weight: bold; font-size: 14px;">Your Device ID:</p>
-            <span id="my-id" style="font-size: 22px; font-family: monospace; color: #0076FF; font-weight: bold; letter-spacing: 1px;">Connecting...</span>
+            <span id="my-id" style="font-size: 20px; font-family: monospace; color: #0076FF; font-weight: bold; letter-spacing: 1px; word-break: break-all;">Connecting...</span>
             <br>
             <button onclick="copyId()" style="margin-top: 10px; padding: 6px 14px; font-size: 13px; background: #eee; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">Copy ID</button>
         </div>
 
+        <!-- QR connect section -->
+        <div id="qr-section" style="display: none; margin: 20px 0; padding: 20px; background: #fafafa; border: 1px dashed #ccc; border-radius: 8px;">
+            <p style="margin: 0 0 12px 0; font-weight: bold; font-size: 14px;">📱 Scan with the iPhone camera to connect instantly</p>
+            <div id="qrcode" style="display: inline-block; padding: 10px; background: white; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);"></div>
+            <p style="font-size: 12px; color: #888; margin: 12px 0 6px 0;">or open this link on the other device:</p>
+            <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="share-link" readonly
+                    style="padding: 8px; font-size: 12px; width: 65%; max-width: 320px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; color: #555; background: white;">
+                <button onclick="copyLink()" style="padding: 8px 12px; font-size: 12px; background: #eee; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">Copy Link</button>
+            </div>
+        </div>
+
         <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 10px;">
             <input type="text" id="peer-id-input" placeholder="Paste the other device's ID here"
-                style="padding: 12px; font-size: 16px; width: 70%; max-width: 320px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 12px; display: block; margin: 0 auto 12px auto;">
+                style="padding: 12px; font-size: 16px; width: 70%; max-width: 320px; border: 1px solid #ccc; border-radius: 4px; display: block; margin: 0 auto 12px auto;">
 
             <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
-                <button onclick="connectTextOnly()"
+                <button id="btn-connect" onclick="connectTextOnly()"
                     style="padding: 12px 18px; font-size: 15px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer;">
                     1. Connect Text Console
                 </button>
-                <button onclick="startCameraBroadcast()"
+                <button id="btn-broadcast" onclick="startCameraBroadcast()"
                     style="padding: 12px 18px; font-size: 15px; background: #0076FF; color: white; border: none; border-radius: 6px; cursor: pointer;">
                     2. Broadcast iPhone Camera
                 </button>
             </div>
         </div>
 
-        <!-- Video feed from iPhone -->
+        <!-- Video feed -->
         <div style="margin-top: 25px;">
             <video id="remote-video" autoplay playsinline muted
                 style="width: 100%; max-width: 380px; background: #111; border-radius: 10px; box-shadow: 0 0 16px rgba(0,0,0,0.3); display: none;">
@@ -62,24 +81,23 @@
                     Send
                 </button>
             </div>
-
-            <!-- Received messages log -->
             <div id="msg-log" style="margin-top: 16px; text-align: left; max-height: 180px; overflow-y: auto; background: #f4f4f4; border-radius: 6px; padding: 12px; font-size: 13px; font-family: monospace; color: #444; display: none;"></div>
         </div>
 
         <!-- Status bar -->
         <div id="status" style="margin-top: 18px; font-size: 13px; color: #888; font-family: monospace; min-height: 18px;">
-            Loading PeerJS library...
+            Loading libraries...
         </div>
     </div>
 
 <script>
     let peer = null;
     let conn = null;
+    let autoConnectTarget = null;   // ID passed in via ?connect= from a scanned QR
 
-    const statusEl  = document.getElementById('status');
-    const videoEl   = document.getElementById('remote-video');
-    const msgLog    = document.getElementById('msg-log');
+    const statusEl = document.getElementById('status');
+    const videoEl  = document.getElementById('remote-video');
+    const msgLog   = document.getElementById('msg-log');
 
     function setStatus(msg, color) {
         statusEl.innerText = msg;
@@ -102,58 +120,92 @@
         navigator.clipboard.writeText(id).then(() => setStatus('ID copied to clipboard!', '#28a745'));
     }
 
-    // --- PeerJS init with fallback CDN ---
-    function initPeer() {
-        if (typeof Peer === 'undefined') {
-            setStatus('Primary CDN failed — trying fallback CDN...', 'orange');
-            const s = document.createElement('script');
-            // Fallback: correct jsDelivr path (not just jsdelivr.net homepage)
-            s.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
-            s.onload = startPeer;
-            s.onerror = () => {
-                // Second fallback: unpkg
-                const s2 = document.createElement('script');
-                s2.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
-                s2.onload = startPeer;
-                s2.onerror = () => {
-                    document.getElementById('my-id').innerText = 'Library blocked';
-                    document.getElementById('my-id').style.color = 'red';
-                    setStatus('All CDNs failed. Check your network or ad-blocker.', 'red');
-                };
-                document.head.appendChild(s2);
-            };
-            document.head.appendChild(s);
-        } else {
-            startPeer();
-        }
+    function copyLink() {
+        const link = document.getElementById('share-link').value;
+        navigator.clipboard.writeText(link).then(() => setStatus('Link copied to clipboard!', '#28a745'));
     }
 
+    // ---------- Library loading with fallbacks ----------
+    function loadFallback(src, onload, onfail) {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = onload;
+        s.onerror = onfail;
+        document.head.appendChild(s);
+    }
+
+    function initLibraries() {
+        // Read ?connect= param from a scanned QR code
+        const params = new URLSearchParams(location.search);
+        autoConnectTarget = params.get('connect');
+        if (autoConnectTarget) {
+            document.getElementById('peer-id-input').value = autoConnectTarget;
+            setStatus('QR link detected — will auto-connect...', '#0076FF');
+        }
+
+        if (typeof Peer === 'undefined') {
+            setStatus('Primary CDN failed — trying fallback...', 'orange');
+            loadFallback(
+                'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',
+                initLibraries,
+                () => loadFallback(
+                    'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
+                    initLibraries,
+                    () => {
+                        document.getElementById('my-id').innerText = 'Library blocked';
+                        document.getElementById('my-id').style.color = 'red';
+                        setStatus('All CDNs failed. Check network / ad-blocker.', 'red');
+                    }
+                )
+            );
+            return;
+        }
+
+        if (typeof QRCode === 'undefined') {
+            // QR lib fallback — non-fatal, the app still works without QR
+            loadFallback(
+                'https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js',
+                startPeer,
+                () => { console.warn('QR library unavailable'); startPeer(); }
+            );
+            return;
+        }
+
+        startPeer();
+    }
+
+    // ---------- PeerJS ----------
     function startPeer() {
         setStatus('Connecting to signalling server...');
         try {
-            // Uses PeerJS's free public signalling server (peerjs.com)
             peer = new Peer();
 
             peer.on('open', (id) => {
                 document.getElementById('my-id').innerText = id;
                 document.getElementById('my-id').style.color = '#0076FF';
-                setStatus('Ready — share your ID with the other device.', '#28a745');
+                showQR(id);
+
+                if (autoConnectTarget) {
+                    // Arrived via QR scan: auto-link the text console,
+                    // highlight the camera button (camera needs a tap on iOS)
+                    connectTextOnly();
+                    document.getElementById('btn-broadcast').classList.add('pulse');
+                    setStatus('Auto-connected via QR — tap "Broadcast iPhone Camera"', '#28a745');
+                } else {
+                    setStatus('Ready — scan the QR with the iPhone, or share your ID.', '#28a745');
+                }
             });
 
-            peer.on('error', (err) => {
-                setStatus('PeerJS error: ' + err.type, 'red');
-            });
+            peer.on('error', (err) => setStatus('PeerJS error: ' + err.type, 'red'));
 
-            // Someone is connecting to us for text
             peer.on('connection', (incoming) => {
                 conn = incoming;
                 wireDataChannel();
             });
 
-            // Someone is calling us with video
             peer.on('call', (call) => {
                 setStatus('Incoming video stream...', '#0076FF');
-                call.answer(); // answer without sending our own stream
+                call.answer();
                 call.on('stream', (remoteStream) => {
                     videoEl.srcObject = remoteStream;
                     videoEl.style.display = 'block';
@@ -168,7 +220,29 @@
         }
     }
 
-    // --- Step 1: Connect text console ---
+    // ---------- QR code ----------
+    function showQR(myId) {
+        if (typeof QRCode === 'undefined') return; // QR lib failed; app works without it
+
+        // Link that opens this same page with my ID prefilled + auto-connect
+        const link = location.origin + location.pathname + '?connect=' + encodeURIComponent(myId);
+        document.getElementById('share-link').value = link;
+
+        const container = document.getElementById('qrcode');
+        container.innerHTML = ''; // clear any previous QR
+        new QRCode(container, {
+            text: link,
+            width: 200,
+            height: 200,
+            colorDark: '#111111',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+        });
+
+        document.getElementById('qr-section').style.display = 'block';
+    }
+
+    // ---------- Step 1: text console ----------
     function connectTextOnly() {
         const targetId = document.getElementById('peer-id-input').value.trim();
         if (!targetId) { alert('Paste the other device ID first.'); return; }
@@ -186,19 +260,18 @@
             log('Text connection established');
         });
         conn.on('data', (data) => {
-            if (data && data.type === 'text') {
-                log('← ' + data.value);
-            }
+            if (data && data.type === 'text') log('← ' + data.value);
         });
         conn.on('error', (e) => setStatus('Connection error: ' + e.message, 'red'));
     }
 
-    // --- Step 2: Broadcast iPhone camera ---
+    // ---------- Step 2: camera broadcast ----------
     async function startCameraBroadcast() {
         const targetId = document.getElementById('peer-id-input').value.trim();
         if (!targetId) { alert('Enter the other device\'s ID first.'); return; }
         if (!peer)     { alert('PeerJS not ready yet.'); return; }
 
+        document.getElementById('btn-broadcast').classList.remove('pulse');
         setStatus('Requesting camera permission...', '#888');
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -206,8 +279,7 @@
                 audio: false
             });
 
-            // Show a local preview
-            videoEl.srcObject = stream;
+            videoEl.srcObject = stream;   // local preview
             videoEl.style.display = 'block';
             setStatus('Camera active — calling remote device...', '#0076FF');
             log('Outgoing call to ' + targetId);
@@ -222,7 +294,7 @@
         }
     }
 
-    // --- Send text message ---
+    // ---------- Text send ----------
     function sendCommand() {
         const text = document.getElementById('cmd-input').value.trim();
         if (!text) return;
@@ -235,7 +307,7 @@
         }
     }
 
-    window.addEventListener('DOMContentLoaded', initPeer);
+    window.addEventListener('DOMContentLoaded', initLibraries);
 </script>
 </body>
 </html>
