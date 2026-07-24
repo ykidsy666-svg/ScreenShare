@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online iPhone Stream & Control Panel</title>
+    <!-- Include PeerJS for zero-config online connectivity -->
+    <script src="https://unpkg.com"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin: 20px; background: #f0f0f0; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        video { width: 100%; max-width: 400px; background: black; border-radius: 4px; transform: scaleX(1); }
+        .control-box { margin-top: 20px; padding: 15px; border-top: 1px solid #ccc; }
+        input, button { padding: 10px; font-size: 16px; margin: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Online iPhone Monitor Panel</h2>
+    
+    <div>
+        <p>Your Connection ID: <strong id="my-id">...</strong></p>
+        <input type="text" id="peer-id-input" placeholder="Enter iPhone ID to connect">
+        <button onclick="connectToPeer()">Connect Desktop to iPhone</button>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <video id="remote-video" autoplay playsinline muted></video>
+    </div>
+
+    <!-- Remote Assistant Command Box -->
+    <div class="control-box">
+        <h3>Shared Control Console</h3>
+        <p>Send text, notes, or web links directly to the iPhone clipboard:</p>
+        <input type="text" id="cmd-input" placeholder="Type text or URL here...">
+        <button onclick="sendCommand()">Push to iPhone</button>
+        <div id="logs" style="color: gray; margin-top: 10px;"></div>
+    </div>
+</div>
+
+<script>
+    let peer;
+    let conn;
+    const remoteVideo = document.getElementById('remote-video');
+    const logs = document.getElementById('logs');
+
+    // Initialize peer connection over the public internet
+    peer = new Peer();
+
+    peer.on('open', (id) => {
+        document.getElementById('my-id').innerText = id;
+    });
+
+    // iPhone Side Logic: Listen for incoming desktop connections
+    peer.on('connection', (connection) => {
+        conn = connection;
+        setupDataChannel();
+    });
+
+    peer.on('call', async (call) => {
+        // iPhone Side Logic: Prompt for screen capture when called
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            call.answer(stream);
+        } catch (err) {
+            console.error("Screen share denied or failed: ", err);
+        }
+    });
+
+    // Desktop Side Logic: Connect button handler
+    function connectToPeer() {
+        const targetId = document.getElementById('peer-id-input').value;
+        if (!targetId) return alert("Please enter the target ID");
+
+        // Open text data channel
+        conn = peer.connect(targetId);
+        setupDataChannel();
+
+        // Open video channel (Desktop asks iPhone for video feed)
+        // Note: Due to iOS restrictions, iPhone must initiate screen capture inside a user gesture
+        alert("Connected text! On the iPhone, trigger screen sharing now.");
+    }
+
+    function setupDataChannel() {
+        conn.on('open', () => {
+            logs.innerText = "Data channel connected successfully!";
+        });
+        
+        conn.on('data', (data) => {
+            if (data.type === 'text') {
+                // If iPhone receives data, show it or ask to copy it
+                alert("Received from Desktop: " + data.value);
+            }
+        });
+    }
+
+    // Desktop Side Logic: Send commands
+    function sendCommand() {
+        const text = document.getElementById('cmd-input').value;
+        if (conn && conn.open) {
+            conn.send({ type: 'text', value: text });
+            logs.innerText = "Sent text payload to iPhone.";
+        } else {
+            alert("Not connected to any peer.");
+        }
+    }
+</script>
+
+</body>
+</html>
