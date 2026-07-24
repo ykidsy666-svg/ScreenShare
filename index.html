@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Online iPhone Monitor Panel</title>
-    <!-- Robust PeerJS Library Delivery Hook -->
-    <script src="https://unpkg.com"></script>
+    
+    <!-- Ultra-Reliable Global jsDelivr CDN Framework Hook -->
+    <script src="https://jsdelivr.net"></script>
 </head>
 <body style="max-width: 800px; margin: 20px auto; font-family: sans-serif; text-align: center; background: #f9f9f9; padding: 20px;">
 
@@ -13,16 +14,16 @@
         <h2>Online iPhone Monitor Panel</h2>
         
         <div style="margin: 20px 0; padding: 15px; background: #f0f7ff; border-radius: 6px;">
-            <p style="margin: 0 0 10px 0; font-weight: bold;">Your Device Connection ID:</p>
-            <span id="my-id" style="font-size: 20px; font-family: monospace; color: #0076FF; font-weight: bold;">Connecting to Signalling Mesh...</span>
+            <p style="margin: 0 0 10px 0; font-weight: bold;">Your Connection ID:</p>
+            <span id="my-id" style="font-size: 20px; font-family: monospace; color: #0076FF; font-weight: bold;">Syncing with Mesh...</span>
         </div>
         
         <!-- Controls Setup -->
         <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 20px;">
             <input type="text" id="peer-id-input" placeholder="Enter Target Device ID" style="padding: 12px; font-size: 16px; width: 60%; max-width: 300px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px;">
             <br>
-            <button onclick="connectTextOnly()" style="padding: 12px 20px; font-size: 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 5px;">1. Connect Shared Console</button>
-            <button onclick="startScreenBroadcast()" style="padding: 12px 20px; font-size: 16px; background: #0076FF; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 5px;">2. Transmit iPhone Screen</button>
+            <button onclick="connectTextOnly()" style="padding: 12px 20px; font-size: 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 5px;">1. Connect Console</button>
+            <button onclick="startScreenBroadcast()" style="padding: 12px 20px; font-size: 16px; background: #0076FF; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 5px;">2. Transmit Screen</button>
         </div>
 
         <!-- Video Viewport -->
@@ -33,10 +34,10 @@
         <!-- Clipboard/Text Exchange Console -->
         <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #eee;">
             <h3>Shared Control Console</h3>
-            <p style="font-size: 14px; color: #666;">Send text data or URLs directly to the connected target device:</p>
-            <input type="text" id="cmd-input" placeholder="Type text or destination URL..." style="padding: 10px; font-size: 15px; width: 70%; max-width: 300px; border: 1px solid #ccc; border-radius: 4px;">
+            <p style="font-size: 14px; color: #666;">Send clipboard text or links to the connected target:</p>
+            <input type="text" id="cmd-input" placeholder="Type text payload..." style="padding: 10px; font-size: 15px; width: 70%; max-width: 300px; border: 1px solid #ccc; border-radius: 4px;">
             <button onclick="sendCommand()" style="padding: 10px 15px; font-size: 15px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px;">Push Text</button>
-            <div id="logs" style="margin-top: 15px; font-size: 13px; color: #777; font-family: monospace;">System initialized. Ready.</div>
+            <div id="logs" style="margin-top: 15px; font-size: 13px; color: #777; font-family: monospace;">Awaiting browser loading...</div>
         </div>
     </div>
 
@@ -51,47 +52,42 @@
         logs = document.getElementById('logs');
 
         if (typeof Peer === 'undefined') {
-            document.getElementById('my-id').innerText = "Library Load Error";
+            document.getElementById('my-id').innerText = "Library Blocked";
             document.getElementById('my-id').style.color = "red";
-            logs.innerText = "Fatal: PeerJS network engine blocked by network architecture.";
+            logs.innerText = "Fatal: Web execution engine blocked by your local network proxy.";
             return;
         }
 
         try {
-            // Instantiate completely serverless client connection over the web mesh
             peer = new Peer();
 
             peer.on('open', (id) => {
                 document.getElementById('my-id').innerText = id;
-                logs.innerText = "Connected to global signaling layer. ID obtained.";
+                logs.innerText = "Connected to global WebRTC network layer.";
             });
 
-            // Handler: When a text handshake arrives
             peer.on('connection', (incomingConn) => {
                 conn = incomingConn;
                 setupDataChannelHandlers();
             });
 
-            // Handler: When a live video stream call arrives (Desktop side actions)
             peer.on('call', (call) => {
-                logs.innerText = "Incoming display feed detected. Synchronizing pipeline...";
-                call.answer(); // Answer the screen share stream
+                logs.innerText = "Incoming display feed detected...";
+                call.answer();
                 call.on('stream', (remoteStream) => {
                     remoteVideo.srcObject = remoteStream;
-                    logs.innerText = "Video viewport rendering active stream.";
+                    logs.innerText = "Streaming live view!";
                 });
             });
 
         } catch (err) {
-            logs.innerText = "Core fault during startup: " + err.message;
+            logs.innerText = "Error: " + err.message;
         }
     }
 
-    // Step 1 Execution: Create text pipeline
     function connectTextOnly() {
         const targetId = document.getElementById('peer-id-input').value.trim();
-        if (!targetId) return alert("Please specify the target Connection ID.");
-
+        if (!targetId) return alert("Please specify the target ID.");
         conn = peer.connect(targetId);
         setupDataChannelHandlers();
     }
@@ -99,57 +95,44 @@
     function setupDataChannelHandlers() {
         if (!conn) return;
         conn.on('open', () => {
-            logs.innerText = "Bidirectional text data channel securely synchronized.";
+            logs.innerText = "Console linked successfully!";
         });
         conn.on('data', (data) => {
             if (data && data.type === 'text') {
-                alert("Data Payload Received:\n\n" + data.value);
+                alert("Remote Console Message:\n\n" + data.value);
             }
         });
     }
 
-    // Step 2 Execution: Trigger actual iOS Screen Broadcast via User Event
     async function startScreenBroadcast() {
         const targetId = document.getElementById('peer-id-input').value.trim();
-        if (!targetId) return alert("Enter the Desktop's ID into the box before starting transmission.");
+        if (!targetId) return alert("Enter the recipient ID first.");
         
-        logs.innerText = "Requesting system capture framework access...";
+        logs.innerText = "Initializing native capture module...";
         try {
-            // Invoke native iOS Control Center screen broadcast module directly out of browser workspace
             const stream = await navigator.mediaDevices.getDisplayMedia({ 
                 video: { width: 720, height: 1280, frameRate: 15 } 
             });
-            
-            logs.innerText = "Media capture initialized. Routing video uplink stream...";
-            const call = peer.call(targetId, stream);
-            
-            call.on('close', () => {
-                logs.innerText = "Stream closed by peer.";
-            });
+            logs.innerText = "Broadcasting stream...";
+            peer.call(targetId, stream);
         } catch (err) {
-            alert("iOS Native Capture Error:\nEnsure Screen Recording isn't restricted in iOS Settings.");
-            logs.innerText = "Media access failure: " + err.message;
+            alert("iOS Native Capture Error: Ensure screen sharing isn't restricted.");
+            logs.innerText = "Media failure: " + err.message;
         }
     }
 
-    // Text Push Operation
     function sendCommand() {
         const textValue = document.getElementById('cmd-input').value;
         if (conn && conn.open) {
             conn.send({ type: 'text', value: textValue });
-            logs.innerText = "Data payload transmitted across active line.";
+            logs.innerText = "Payload delivered.";
             document.getElementById('cmd-input').value = "";
         } else {
-            alert("No active text pipeline established. Complete step 1 first.");
+            alert("No active console connection found.");
         }
     }
 
-    // Runtime Lifecycle Bootstrap hook
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        initApplication();
-    } else {
-        window.addEventListener('DOMContentLoaded', initApplication);
-    }
+    window.addEventListener('DOMContentLoaded', initApplication);
 </script>
 </body>
 </html>
