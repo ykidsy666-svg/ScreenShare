@@ -3,126 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online iPhone Stream & Control Panel</title>
-    <!-- Include PeerJS for zero-config online connectivity -->
-    <script src="https://unpkg.com"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; margin: 20px; background: #f0f0f0; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
-        video { width: 100%; max-width: 400px; background: black; border-radius: 4px; transform: scaleX(1); }
-        .control-box { margin-top: 20px; padding: 15px; border-top: 1px solid #ccc; }
-        input, button { padding: 10px; font-size: 16px; margin: 5px; }
-    </style>
+    <title>Online iPhone Monitor Panel</title>
+    
+    <!-- Primary Source via Cloudflare Engine Network -->
+    <script src="https://cloudflare.com" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
 
-<div class="container">
+<div style="max-width: 800px; margin: 20px auto; font-family: sans-serif; text-align: center; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
     <h2>Online iPhone Monitor Panel</h2>
     
     <div>
-        <p>Your Connection ID: <strong id="my-id">...</strong></p>
-        <input type="text" id="peer-id-input" placeholder="Enter iPhone ID to connect">
-        <button onclick="connectToPeer()">Connect Desktop to iPhone</button>
+        <p>Your Connection ID: <strong id="my-id" style="color: #0076FF;">Connecting to server...</strong></p>
+        <input type="text" id="peer-id-input" placeholder="Enter iPhone ID to connect" style="padding: 10px; font-size: 16px; margin: 5px;">
+        <button onclick="connectToPeer()" style="padding: 10px 15px; font-size: 16px; cursor: pointer; background: #0076FF; color: white; border: none; border-radius: 4px;">Connect Desktop to iPhone</button>
     </div>
 
     <div style="margin-top: 20px;">
-        <video id="remote-video" autoplay playsinline muted></video>
+        <video id="remote-video" autoplay playsinline muted style="width: 100%; max-width: 400px; background: black; border-radius: 4px;"></video>
     </div>
 
-    <!-- Remote Assistant Command Box -->
-    <div class="control-box">
+    <div style="margin-top: 20px; padding: 15px; border-top: 1px solid #ccc;">
         <h3>Shared Control Console</h3>
         <p>Send text, notes, or web links directly to the iPhone clipboard:</p>
-        <input type="text" id="cmd-input" placeholder="Type text or URL here...">
-        <button onclick="sendCommand()">Push to iPhone</button>
-        <div id="logs" style="color: gray; margin-top: 10px;"></div>
+        <input type="text" id="cmd-input" placeholder="Type text or URL here..." style="padding: 10px; font-size: 16px; width: 70%; max-width: 300px;">
+        <button onclick="sendCommand()" style="padding: 10px 15px; font-size: 16px; cursor: pointer;">Push to iPhone</button>
+        <div id="logs" style="color: gray; margin-top: 10px; font-size: 14px;">Initializing script parameters...</div>
     </div>
 </div>
 
 <script>
-    let peer;
-    let conn;
+    let peer = null;
+    let conn = null;
     let remoteVideo;
     let logs;
 
-    // Wait until the window and all external libraries (PeerJS) are fully loaded
-    window.addEventListener('load', () => {
+    function initApplication() {
         remoteVideo = document.getElementById('remote-video');
         logs = document.getElementById('logs');
 
+        // Defensive check: verify if PeerJS loaded from CDN
+        if (typeof Peer === 'undefined') {
+            document.getElementById('my-id').innerText = "Library Load Failure";
+            document.getElementById('my-id').style.color = "red";
+            logs.innerText = "Error: Cloudflare CDN blocked or timed out. Please check your network.";
+            return;
+        }
+
         try {
-            // Initialize peer connection over the public internet
+            // Instantiate the Peer object
             peer = new Peer();
 
             peer.on('open', (id) => {
                 document.getElementById('my-id').innerText = id;
-                logs.innerText = "Ready for connections.";
+                document.getElementById('my-id').style.color = "green";
+                logs.innerText = "Connected to online signaling mesh network. Waiting for action.";
             });
 
-            // iPhone Side Logic: Listen for incoming desktop connections
             peer.on('connection', (connection) => {
                 conn = connection;
                 setupDataChannel();
             });
 
             peer.on('call', async (call) => {
-                // iPhone Side Logic: Prompt for screen capture when called
                 try {
                     const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
                     call.answer(stream);
                 } catch (err) {
-                    console.error("Screen share denied or failed: ", err);
-                    logs.innerText = "Error sharing screen: " + err.message;
+                    console.error("Screen share deployment rejected:", err);
+                    logs.innerText = "System prompt warning: " + err.message;
                 }
             });
 
         } catch (error) {
-            console.error("PeerJS initialization failed: ", error);
-            document.getElementById('my-id').innerText = "Library load error";
+            console.error("Initialization process halted:", error);
+            logs.innerText = "Initialization crashed: " + error.message;
         }
-    });
+    }
 
-    // Desktop Side Logic: Connect button handler
     function connectToPeer() {
-        const targetId = document.getElementById('peer-id-input').value;
+        if (!peer) {
+            alert("The Peer network matrix is uninitialized. Verify your internet deployment.");
+            return;
+        }
+        const targetId = document.getElementById('peer-id-input').value.trim();
         if (!targetId) return alert("Please enter the target ID");
 
-        if (!peer) return alert("PeerJS is not initialized yet. Please wait a moment.");
-
-        // Open text data channel
         conn = peer.connect(targetId);
         setupDataChannel();
 
-        // Note: Due to iOS restrictions, iPhone must initiate screen capture inside a user gesture
-        alert("Connected text! On the iPhone, trigger screen sharing now.");
+        alert("Text link handshake established! Now instruct the iPhone user to share their screen display stream.");
     }
 
     function setupDataChannel() {
         if (!conn) return;
 
         conn.on('open', () => {
-            logs.innerText = "Data channel connected successfully!";
+            logs.innerText = "Live peer-to-peer data bridge synchronized!";
         });
         
         conn.on('data', (data) => {
-            if (data.type === 'text') {
-                alert("Received from Desktop: " + data.value);
+            if (data && data.type === 'text') {
+                alert("Payload delivered: " + data.value);
             }
         });
     }
 
-    // Desktop Side Logic: Send commands
     function sendCommand() {
         const text = document.getElementById('cmd-input').value;
         if (conn && conn.open) {
             conn.send({ type: 'text', value: text });
-            logs.innerText = "Sent text payload to iPhone.";
+            logs.innerText = "Pushed payload across active proxy stream.";
         } else {
-            alert("Not connected to any peer.");
+            alert("Unable to transmit. No remote active handset target verified.");
         }
     }
-</script>
 
+    // Fire the application setup when DOM load signals completion
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initApplication();
+    } else {
+        window.addEventListener('DOMContentLoaded', initApplication);
+    }
+</script>
 
 </body>
 </html>
