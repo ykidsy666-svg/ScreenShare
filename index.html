@@ -42,29 +42,43 @@
 <script>
     let peer;
     let conn;
-    const remoteVideo = document.getElementById('remote-video');
-    const logs = document.getElementById('logs');
+    let remoteVideo;
+    let logs;
 
-    // Initialize peer connection over the public internet
-    peer = new Peer();
+    // Wait until the window and all external libraries (PeerJS) are fully loaded
+    window.addEventListener('load', () => {
+        remoteVideo = document.getElementById('remote-video');
+        logs = document.getElementById('logs');
 
-    peer.on('open', (id) => {
-        document.getElementById('my-id').innerText = id;
-    });
-
-    // iPhone Side Logic: Listen for incoming desktop connections
-    peer.on('connection', (connection) => {
-        conn = connection;
-        setupDataChannel();
-    });
-
-    peer.on('call', async (call) => {
-        // iPhone Side Logic: Prompt for screen capture when called
         try {
-            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-            call.answer(stream);
-        } catch (err) {
-            console.error("Screen share denied or failed: ", err);
+            // Initialize peer connection over the public internet
+            peer = new Peer();
+
+            peer.on('open', (id) => {
+                document.getElementById('my-id').innerText = id;
+                logs.innerText = "Ready for connections.";
+            });
+
+            // iPhone Side Logic: Listen for incoming desktop connections
+            peer.on('connection', (connection) => {
+                conn = connection;
+                setupDataChannel();
+            });
+
+            peer.on('call', async (call) => {
+                // iPhone Side Logic: Prompt for screen capture when called
+                try {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    call.answer(stream);
+                } catch (err) {
+                    console.error("Screen share denied or failed: ", err);
+                    logs.innerText = "Error sharing screen: " + err.message;
+                }
+            });
+
+        } catch (error) {
+            console.error("PeerJS initialization failed: ", error);
+            document.getElementById('my-id').innerText = "Library load error";
         }
     });
 
@@ -73,23 +87,25 @@
         const targetId = document.getElementById('peer-id-input').value;
         if (!targetId) return alert("Please enter the target ID");
 
+        if (!peer) return alert("PeerJS is not initialized yet. Please wait a moment.");
+
         // Open text data channel
         conn = peer.connect(targetId);
         setupDataChannel();
 
-        // Open video channel (Desktop asks iPhone for video feed)
         // Note: Due to iOS restrictions, iPhone must initiate screen capture inside a user gesture
         alert("Connected text! On the iPhone, trigger screen sharing now.");
     }
 
     function setupDataChannel() {
+        if (!conn) return;
+
         conn.on('open', () => {
             logs.innerText = "Data channel connected successfully!";
         });
         
         conn.on('data', (data) => {
             if (data.type === 'text') {
-                // If iPhone receives data, show it or ask to copy it
                 alert("Received from Desktop: " + data.value);
             }
         });
@@ -106,6 +122,7 @@
         }
     }
 </script>
+
 
 </body>
 </html>
